@@ -13,6 +13,7 @@ def test_multiplication():
 
 def test_division():
     assert calculator("10 / 4") == "2.5"
+    
 
 def test_power():
     assert calculator("2 ** 8") == "256"
