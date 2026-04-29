@@ -1,0 +1,5 @@
+.env
+data
+vectordb
+.pytest_cache
+.venv

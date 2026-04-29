@@ -1,0 +1,40 @@
+# Core LangChain
+langchain
+langchain-community
+langchain-text-splitters
+langchain-groq
+langchain-huggingface
+langchain-chroma
+
+# Vector Store
+chromadb
+
+# Embeddings
+sentence-transformers
+
+# Graph Database
+neo4j
+
+# LLM API
+groq
+
+# Document Loaders
+pypdf
+docx2txt
+
+# Web Search Tool
+tavily-python
+
+# API Server
+fastapi
+uvicorn
+python-multipart
+
+# Environment Variables
+python-dotenv
+
+# Testing
+pytest
+
+# Utilities (stdlib — listed for reference, no install needed)
+# os, hashlib, json, logging, re
