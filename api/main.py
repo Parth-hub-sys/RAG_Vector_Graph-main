@@ -8,6 +8,8 @@ import shutil
 
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, field_validator
 from agent.rag_agent import answer
 from ingestion.loader import load_document
@@ -19,8 +21,8 @@ from config.settings import DATA_FOLDER, METADATA_FILE
 
 app = FastAPI(
     title="RAG Vector Graph API",
-    description="Hybrid RAG system combining vector search and knowledge graph",
-    version="1.0.0",
+    description="Hybrid RAG system combining vector search, knowledge graph, and web search",
+    version="1.1.0",
 )
 
 app.add_middleware(
@@ -33,6 +35,7 @@ app.add_middleware(
 
 class ChatRequest(BaseModel):
     query: str
+    use_web_search: bool = False
 
     @field_validator("query")
     @classmethod
@@ -48,6 +51,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     query: str
     response: str
+    used_web_search: bool = False
 
 
 ALLOWED_EXTENSIONS = {".pdf", ".txt", ".docx"}
@@ -138,7 +142,13 @@ async def upload_document(file: UploadFile = File(...)):
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
     try:
-        result = answer(req.query)
-        return ChatResponse(query=req.query, response=result)
+        result = answer(req.query, use_web_search=req.use_web_search)
+        return ChatResponse(query=req.query, response=result, used_web_search=req.use_web_search)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Serve frontend — must be LAST (catches remaining routes)
+_FRONTEND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend")
+if os.path.isdir(_FRONTEND_DIR):
+    app.mount("/", StaticFiles(directory=_FRONTEND_DIR, html=True), name="frontend")

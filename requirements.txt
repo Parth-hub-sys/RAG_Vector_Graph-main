@@ -29,6 +29,7 @@ tavily-python
 fastapi
 uvicorn
 python-multipart
+aiofiles
 
 # Environment Variables
 python-dotenv

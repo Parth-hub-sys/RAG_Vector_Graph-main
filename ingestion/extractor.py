@@ -29,51 +29,57 @@ def extract_triplets(text: str) -> str:
     """
     try:
         prompt = f"""You are an intelligent information extraction system.
-Your task is to read any type of document — including informative articles, research papers, books, or resumes — and extract structured entities and relationships to build a knowledge graph.
+Extract structured entity relationships from the given text to build a knowledge graph.
 
-Identify the following entities based on document type:
+═══ RULE 1 — REAL NAMES ONLY ═══
+Always use the ACTUAL name found in the document.
+- Resume: use the candidate's real name (found in the header/title). NEVER write "Candidate", "Unnamed Candidate", "Person", or "Author".
+- Article/Book: use the author's real name, not "Author".
+- Last resort only if name truly cannot be found: "Unknown Person".
 
-For informative documents / books / articles:
-- Person (author, researcher, historical figure, expert)
-- Organization (institution, company, government body, publisher)
-- Concept / Topic (key ideas, theories, frameworks, subjects)
-- Location (country, city, region, place)
-- Date / Time Period (year, era, event date)
-- Event (conference, discovery, publication, milestone)
-- Technology / Tool (software, method, instrument)
-- Work / Publication (book title, paper, article, report)
+═══ RULE 2 — PROJECT EXTRACTION (most important for resumes) ═══
+A PROJECT is identified by its TITLE (usually bold or on its own line, e.g. "Car Price Prediction", "Hybrid RAG System").
+- Use ONLY the short project title as the project entity, NOT a task description or bullet point.
+  ✓ CORRECT:  PersonName → worked on → Car Price Prediction
+  ✗ WRONG:    PersonName → worked on → Integrated multi-source data for enhanced product insights
+  ✗ WRONG:    PersonName → participated in → Improved ML model performance by 25%
 
-For resumes / CVs:
-- Person (candidate name)
-- Skill (programming language, framework, soft skill, certification)
-- Job Title / Role (position held or applied for)
-- Organization (employer, university, school)
-- Degree / Qualification (education level, field of study)
-- Date / Duration (employment period, graduation year)
-- Project (key projects or achievements)
-- Location (city, country of work or study)
+- For each project, also extract:
+  ProjectTitle → uses technology → TechName   (for each tool/library used in that project)
+  ProjectTitle → achieved → AchievementFact    (specific measurable result, e.g. "8th place on Kaggle leaderboard")
+  ProjectTitle → belongs to domain → DomainName  (e.g. "Machine Learning", "Web Development")
 
-Identify the following relationships based on context:
-- Person → authored → Work / Publication
-- Person → worked at → Organization
-- Person → studied at → Organization
-- Person → holds degree → Degree / Qualification
-- Person → has skill → Skill
-- Person → held role → Job Title
-- Person → participated in → Event
-- Concept → is part of → Topic / Field
-- Organization → located in → Location
-- Event → occurred in → Date / Location
-- Technology → used for → Concept / Task
-- Work → published by → Organization
+- Achievements and statistics (e.g. "25% improvement", "8th place") are properties of the PROJECT, not events the person "participated in".
 
-Output format:
-- Entities: List all extracted entities with their type labels
-- Relationships: List all relationships as triples (Subject → Relation → Object)
+═══ RULE 3 — RELATIONSHIPS TO EXTRACT ═══
+Person relations:
+  PersonName → has skill → SkillName
+  PersonName → worked at → OrganizationName
+  PersonName → studied at → OrganizationName
+  PersonName → holds degree → DegreeName
+  PersonName → held role → JobTitle
+  PersonName → worked on → ProjectTitle        ← use project TITLE only
+  PersonName → achieved → PersonalAchievement  ← only for person-level achievements (e.g. "CGPA 8.33")
 
-Text: {text}
+Project relations:
+  ProjectTitle → uses technology → TechName
+  ProjectTitle → achieved → ResultFact
+  ProjectTitle → belongs to domain → Domain
 
-Output:"""
+Other:
+  OrganizationName → located in → Location
+  TechName → used for → Task
+
+═══ OUTPUT FORMAT ═══
+Output ONLY relationship triples, one per line, nothing else:
+Subject → Relation → Object
+
+No bullet points, no numbering, no headers, no entity lists — ONLY triples.
+
+Text:
+{text}
+
+Relationships:"""
         
         response = llm.invoke(prompt)
         return response.content
