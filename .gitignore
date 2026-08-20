@@ -3,4 +3,4 @@ data
 vectordb
 .pytest_cache
 .venv
-metadata/ingested_files.json
+metadata

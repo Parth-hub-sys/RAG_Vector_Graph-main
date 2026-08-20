@@ -3,18 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from langchain_groq import ChatGroq
-
-# Initialize LLM
-groq_api_key = os.getenv("GROQ_API_KEY")
-if not groq_api_key:
-    raise ValueError("GROQ_API_KEY not found in .env file")
-
-llm = ChatGroq(
-    api_key=groq_api_key,
-    model="openai/gpt-oss-120b",
-    temperature=0
-)
+from agent.groq_client import invoke
 
 
 def extract_triplets(text: str) -> str:
@@ -81,7 +70,7 @@ Text:
 
 Relationships:"""
         
-        response = llm.invoke(prompt)
+        response = invoke(prompt)
         return response.content
     except Exception as e:
         print(f"Error extracting triplets: {str(e)}")

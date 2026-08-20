@@ -1,26 +1,12 @@
-from langchain_groq import ChatGroq
 from retrieval.hybrid_retriever import hybrid_context
 from dotenv import load_dotenv
-import os
 import logging
+from agent.groq_client import GroqRateLimitError, invoke
 
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-_llm = None
-
-
-def _get_llm():
-    global _llm
-    if _llm is None:
-        api_key = os.getenv("GROQ_API_KEY")
-        if not api_key:
-            raise ValueError("GROQ_API_KEY not set in .env")
-        _llm = ChatGroq(api_key=api_key, model="openai/gpt-oss-120b", temperature=0)
-    return _llm
-
 
 def _format_web_results(results: dict) -> str:
     items = results.get("results", [])
@@ -74,8 +60,12 @@ The CONTEXT contains labeled sections (labels may be prefixed with an emoji):
 - "Knowledge Graph Context" or "🔗 Knowledge Graph Context (from Graph Database)": entity relationships from Neo4j, each line formatted as "Entity --[RELATION_TYPE]--> Entity" or "• Entity --[RELATION_TYPE]--> Entity"{web_context_label}
 
 Task:
-1) Write a "Document Summary" (2-3 sentences) based on the Document Context.
-   If the Document Context section is absent or empty, write: "No Document Context available."
+1) Write an "Integrated Summary" that combines the factual details from the Document Context
+    with the entity relationships from the Knowledge Graph Context. This should be a detailed,
+    well-organized summary of the relevant information, normally 2-5 paragraphs. Use the vector
+    context for explanations and details, and use graph relations to connect people, skills,
+    organizations, projects, technologies, and results. Do not repeat the same fact unnecessarily.
+    If a source is unavailable, clearly state that its context is unavailable. Do not invent facts.
 
 2) Under "Graph Relations:", reformat EACH relation from the Knowledge Graph Context into clean, human-readable form:
    - Input format: "Parth Tarsariya --[HAS_SKILL]--> Python"
@@ -83,20 +73,23 @@ Task:
    - Rules: lowercase the relation type, replace underscores with spaces, use → arrows
    - List ONE relation per line
    - If the Knowledge Graph Context section is absent or empty, write: "No Graph Context available."{web_task}
-3) Write a concise final answer to the QUESTION that synthesizes all available sources.
-   If only one source is available, answer from that source and note it.
+3) Write a complete final answer to the QUESTION using the Integrated Summary and all relevant
+    graph relations. Prefer a detailed answer with useful supporting facts over a one-sentence
+    answer. Clearly distinguish facts found in the document from relationships found in the graph.
+    If the sources disagree, mention the disagreement instead of guessing. If only one source is
+    available, say which source was used.
 
 4) Add "Sources:" line listing which of VECTOR, GRAPH{web_sources_label} were used.
 
 Output (use these exact section labels):
-Document Summary:
-<2-3 sentence paragraph>
+Integrated Summary:
+<detailed merged summary from vector and graph context>
 
 Graph Relations:
 <one "A → relation → B" per line, or "No Graph Context available.">
 {web_output_block}
 Final Answer:
-<concise answer>
+<detailed answer to the question based only on the retrieved context>
 
 Sources: VECTOR, GRAPH{web_sources_label}
 
@@ -108,5 +101,8 @@ QUESTION: {query}
 Answer:
 """
 
-    response = _get_llm().invoke(prompt).content
-    return response
+    try:
+        return invoke(prompt).content
+    except GroqRateLimitError as exc:
+        logger.warning("Answer generation skipped: %s", exc)
+        return "Groq is temporarily rate-limited. Please wait a moment and try again."
